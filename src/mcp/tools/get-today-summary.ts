@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { getTodayFoodLogs, getUserProfile, getHealthSnapshot, todayDate } from '../../deficit-client/client.js';
 
@@ -7,13 +8,13 @@ export function registerGetTodaySummary(server: McpServer, getToken: () => strin
     {
       title: 'Get today\'s summary',
       description:
-        'Returns today\'s calorie intake, deficit progress, macros, and health metrics (steps, sleep, HRV) for the connected DEFICIT account.',
-      inputSchema: {},
+        'Returns today\'s calorie intake, food allowance, macros, and health metrics (steps, sleep, HRV) for the connected DEFICIT account.',
+      inputSchema: { timezone: z.string().default('UTC').describe('IANA timezone for the user, for example Europe/London. Ask if unknown.') },
       annotations: { readOnlyHint: true },
     },
-    async () => {
+    async ({ timezone }) => {
       const token = getToken();
-      const date = todayDate();
+      const date = todayDate(timezone);
 
       const [logs, profile, health] = await Promise.all([
         getTodayFoodLogs(date, token),
@@ -25,12 +26,12 @@ export function registerGetTodaySummary(server: McpServer, getToken: () => strin
       const totalProtein = logs.reduce((s, l) => s + (l.protein ?? 0), 0);
       const totalCarbs = logs.reduce((s, l) => s + (l.carbs ?? 0), 0);
       const totalFat = logs.reduce((s, l) => s + (l.fat ?? 0), 0);
-      const target = profile.baseLimit ?? 1800;
-      const remaining = target - totalCalories;
+      const target = profile.baseLimit && profile.baseLimit > 0 ? profile.baseLimit : null;
+      const remaining = target === null ? null : target - totalCalories;
 
       const lines: string[] = [
         `Date: ${date}`,
-        `Calories eaten: ${totalCalories} / ${target} (${remaining >= 0 ? remaining + ' remaining' : Math.abs(remaining) + ' over'})`,
+        `Calories recorded: ${totalCalories}${remaining === null ? ' (target not set)' : ` / ${target} (${remaining >= 0 ? remaining + ' remaining' : Math.abs(remaining) + ' over target'})`}`,
         `Macros: ${totalProtein}g protein, ${totalCarbs}g carbs, ${totalFat}g fat`,
         `Meals logged: ${logs.length}`,
       ];

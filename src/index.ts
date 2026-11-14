@@ -3,9 +3,10 @@ import express from 'express';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createMcpServer } from './mcp/server.js';
 import { config } from './config.js';
+import { getUserProfile } from './deficit-client/client.js';
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -14,8 +15,10 @@ app.get('/health', (_req, res) => {
 
 // MCP endpoint — one transport per session
 app.all('/mcp', async (req, res) => {
-  // Phase 1: token from env. Phase 3: extracted from OAuth bearer on req.
-  const token = config.deficitBearerToken || undefined;
+  const header = req.get('authorization');
+  const token = header?.startsWith('Bearer ') ? header.slice(7) : undefined;
+  if (!token) { res.status(401).json({ error: 'Per-user authentication required' }); return; }
+  try { await getUserProfile(token); } catch { res.status(401).json({ error: 'Invalid or expired account session' }); return; }
 
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   const server = createMcpServer(() => token);

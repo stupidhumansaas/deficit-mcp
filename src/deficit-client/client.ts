@@ -29,9 +29,12 @@ interface HealthSnapshot {
   weightKg?: number;
 }
 
-async function apiFetch<T>(path: string, token?: string): Promise<T> {
-  const bearer = token ?? config.deficitBearerToken;
+export async function apiFetch<T>(path: string, token?: string): Promise<T> {
+  if (!token) throw new Error('Authentication required');
+  const bearer = token;
   const res = await fetch(`${config.deficitApiBase}${path}`, {
+    signal: AbortSignal.timeout(15000),
+    redirect: 'error',
     headers: {
       Authorization: `Bearer ${bearer}`,
       'Content-Type': 'application/json',
@@ -40,6 +43,7 @@ async function apiFetch<T>(path: string, token?: string): Promise<T> {
   });
   if (!res.ok) throw new Error(`DEFICIT API error ${res.status}: ${path}`);
   const body = (await res.json()) as { success: boolean; data?: T };
+  if (!body.success || body.data === undefined) throw new Error('Invalid API response');
   return body.data as T;
 }
 
@@ -59,6 +63,6 @@ export async function getHealthSnapshot(date: string, token?: string): Promise<H
   }
 }
 
-export function todayDate(): string {
-  return new Date().toISOString().slice(0, 10);
+export function todayDate(timezone = 'UTC'): string {
+  return new Intl.DateTimeFormat('en-CA', {timeZone: timezone, year:'numeric', month:'2-digit', day:'2-digit'}).format(new Date());
 }
