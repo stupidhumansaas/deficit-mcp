@@ -1,3 +1,4 @@
+import { registerJournalTools } from './tools/journal.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerGetTodaySummary } from './tools/get-today-summary.js';
 
@@ -8,6 +9,7 @@ export function createMcpServer(getToken: () => string | undefined): McpServer {
   });
 
   registerGetTodaySummary(server, getToken);
+  registerJournalTools(server, getToken);
 
   return server;
 }
