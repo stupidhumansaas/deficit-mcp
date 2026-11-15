@@ -1,12 +1,18 @@
 import {z} from 'zod';
 import type {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
+import {apiFetch} from '../../deficit-client/client.js';
 import {config} from '../../config.js';
 export async function journalRequest(token:string|undefined,body:unknown):Promise<any>{
  if(!token)throw Error('Authentication required');
- const response=await fetch(`${config.deficitApiBase}/api/journal`,{method:'POST',redirect:'error',signal:AbortSignal.timeout(20000),headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json','X-Client-Type':'deficit-mcp'},body:JSON.stringify(body)});
+ const response=await fetch(`${config.deficitApiBase}/oauth/journal`,{method:'POST',redirect:'error',signal:AbortSignal.timeout(20000),headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json','X-Client-Type':'deficit-mcp'},body:JSON.stringify(body)});
  const result:any=await response.json();if(!response.ok)throw Error(typeof result.error==='string'?result.error:result.error?.message||'Journal request failed');return result;
 }
 export function registerJournalTools(server:McpServer,getToken:()=>string|undefined){
+ server.registerTool('get_connection_status',{description:'Verify this authenticated DEFICIT MCP connection without creating records. Returns actual read verification and separately granted write/photo permissions.',inputSchema:{},annotations:{readOnlyHint:true}},async()=>{
+ await journalRequest(getToken(),{action:'context'});
+ const status=await apiFetch('/oauth/connection',getToken());
+ return {content:[{type:'text' as const,text:JSON.stringify(status)}]};
+ });
  const run=async(body:unknown)=>{try{return {content:[{type:'text' as const,text:JSON.stringify(await journalRequest(getToken(),body))}]}}catch(e:any){return {content:[{type:'text' as const,text:e.message}],isError:true}}};
  server.registerTool('read_cut_records',{description:'Read canonical DEFICIT records, including existing Cut history with IDs, revisions and sources.',inputSchema:{},annotations:{readOnlyHint:true}},async()=>{const c=await journalRequest(getToken(),{action:'context'});return {content:[{type:'text' as const,text:JSON.stringify(c.records)}]}});
  server.registerTool('read_cut_submissions',{description:'Read pending entries. Review exact versions; never log reviewed submissions separately.',inputSchema:{id:z.string().optional()},annotations:{readOnlyHint:true}},async args=>run({action:'submissions',...args}));

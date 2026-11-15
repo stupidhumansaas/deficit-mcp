@@ -1,15 +1,22 @@
 # DEFICIT MCP
 
-Every request requires its own DEFICIT bearer session. A server-wide fallback
-account is intentionally unsupported. The API validates the caller before a
-transport is created. Credentials are never returned as tool output.
+Remote endpoint: https://deficit-mcp-production.up.railway.app/mcp
 
-`get_today_summary` reads the existing native API with an explicit IANA timezone.
-A missing target stays missing. Food allowance is separate from active burn.
+Add it as an OAuth MCP server in a supported client. Discovery advertises the
+DEFICIT authorization server. Register a public client, use an exact registered
+redirect, S256 PKCE and the canonical resource parameter. Account consent grants
+records:read, records:write and/or photos:read. Tokens are opaque, stored only as
+hashes, time-limited and revocable in DEFICIT → Profile → AI connections.
 
-This server is **not a completed consumer OAuth connector**. OAuth discovery,
-PKCE, delegated scopes, connection revocation and shared-record migration remain
-release prerequisites. Do not instruct consumers to paste session tokens into
-prompts or label a provider connected because they copied setup text.
+Each tool request revalidates the grant. `get_connection_status` performs a real,
+non-mutating journal read and records verification only after success. Write
+permission is reported separately. No user/session tokens belong in prompts.
 
-Run `npm ci`, `npm run build`, then `npm start`.
+The API exchanges the validated grant for an internal short-lived account request
+to the existing canonical journal. A model-supplied owner is never trusted.
+Legacy Cut tool names are retained. Imports, linking and deletion are not delegated
+by records:write. Existing hosted Cut connections remain separate and operational.
+
+Run `npm ci`, `npm run build`, `node --test tests/client.mjs`, then `npm start`.
+Provider setup and actual user consent must still be exercised separately from
+protocol tests. A successful deployment does not prove a particular AI connected.
