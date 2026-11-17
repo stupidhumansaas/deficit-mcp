@@ -14,7 +14,7 @@ app.get('/health', (_req, res) => {
 });
 
 const resource = 'https://deficit-mcp-production.up.railway.app/mcp';
-const metadata = {resource,authorization_servers:[config.deficitApiBase],scopes_supported:['records:read','records:write','photos:read'],bearer_methods_supported:['header']};
+const metadata = {resource,authorization_servers:[config.deficitApiBase],scopes_supported:['records:read','records:write','records:delete','photos:read'],bearer_methods_supported:['header']};
 app.get(['/.well-known/oauth-protected-resource','/.well-known/oauth-protected-resource/mcp'],(_req,res)=>res.json(metadata));
 // MCP endpoint — stateless transport; every request revalidates revocation.
 app.all('/mcp', async (req, res) => {
